@@ -14,10 +14,14 @@ def get_report(month=str(), year=str()):
     if len(month) == 1:
         month = '0'+month
 
-    url = 'https://www.federalreserve.gov/monetarypolicy/beigebook'+year+month+'.htm'
+    if int(year)>2016: url = 'https://www.federalreserve.gov/monetarypolicy/beigebook'+year+month+'.htm'
+    elif int(year)>=2011: url = 'https://www.federalreserve.gov/monetarypolicy/beigebook/beigebook'+year+month+'.htm'
+    elif int(year)<2011: 
+        print(f"Reports prior to 2010 are not prepared yet")
+        return None
+    else: return f"unkown error getting report from Federal Reserve"
         
-    with requests.get(url) as response: 
-        soup = BeautifulSoup(response.content, "html.parser")
+    soup = BeautifulSoup(requests.get(url).content, "html.parser")
 
     if str(soup.h2) == '<h2>Page not found</h2>': 
         return f"No report available for {month}/{year}"
@@ -34,18 +38,62 @@ def save_report(report=BeautifulSoup()):
     if len(month) == 1: month = '0'+month
     year = str(date.year)
 
-    with open('./reports/BR'+month+year+'.html','w', encoding='utf-8') as br: 
-        br.write(report.prettify()) 
+    with open('./reports/BR'+month+year+'.html','w', encoding='utf-8') as file: 
+        file.write(report.prettify()) 
 
-def pull_report(filename=str()):
-    return BeautifulSoup(open('./reports/'+filename+'.html','r'), "html.parser")
+def pull_local_report(month=str(),year=str()):
+    """
+    Pulls beige report for given month and year
+        month : str
+            must be number form (01 or 1)
+        
+        year : str
+            must be the full year (2020)
+    """
+    if len(month) == 1: month = '0'+month
+    return BeautifulSoup(open('./reports/BR'+year+month+'.html','r'), "html.parser")
 
-br = pull_report('BR042023')
+def version_check(report=BeautifulSoup()):
+    version_three = 2017
+    version_two = 2011
+    version_one = 1996
+    report_year = int(report.title.get_text().strip()[-4:])
+    
+    if report_year >= version_three: return 3
+    if report_year >= version_two: return 2
+    if report_year >= version_one: return 1
+    return 0 
 
-sections = br.find_all('p')
+def clean_report(report=BeautifulSoup()):
+    """
+    Cleans up html and gives the report broken up into sections
+    """
+    version = version_check(report)
 
-lines = []
-for p in sections:
-    lines.append(' '.join(p.text.replace('\n','').split()))
+    if version == 1:
+        print('not ready to clean the report version 1 yet')
+        return None
+    
+    if version == 2:
+        print('not ready to clean the report version 2 yet')
+        return None
+    
+    if version == 3:
+        return vThreeClean(report)
+    
+def vThreeClean(report=BeautifulSoup()):
+    
+    Bank = 'Overall Market'
+    for line in report.find(id='article').find_all('p')[13:16]:
+        
+        if line.strong == None:
+            Bank = str(line.a).split('>')[0].split('=')[-1].replace('"','').capitalize()
+            Bank = 'Federal Reserve Bank of ' + Bank
 
-print(lines[0:20])
+        else:
+            print(line.get_text())
+
+
+
+br = pull_local_report('04','2023')
+clean_report(br)
