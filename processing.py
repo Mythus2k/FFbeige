@@ -6,8 +6,7 @@ from report_pull import get_report,clean_report
 import yfinance as yf 
 from datetime import datetime as dt
 from dateutil.relativedelta import relativedelta
-import pickle as pkl
-from pandas import read_csv
+from pandas import read_csv, concat, DataFrame
 
 DEVICE = torch.device("cuda") if torch.cuda.is_available() else torch.device("cpu")
 
@@ -77,13 +76,53 @@ def pad_reports_temp():
         tensor = pad_tensor(tensor,[300,9,768])
         torch.save(tensor, f'./reports/tensors/{tensor_name}.tns')
 
+def add_report(month=int(),year=int(),header=str(),paragraph=str()):
+    assert month < 12 and month > 0, "Month must be between 1 and 12"
+    assert year > 1996, "Beige report archive only goes back to 1996"
+    print(f'Processing: Adding Report - R{month}{year}{header[:5]}{paragraph[:5]}')
+
+    report = get_report(str(month),str(year))
+    if report == None:
+        print("Unable to get report")
+        return None
+
+    report = clean_report(report)
+
+    if header not in report.keys():
+        print(f'Header not in report - try again with one of these:\n {report.keys()}')
+        return None
+    section = report[header]
+
+    if paragraph not in section.keys():
+        print(f"Paragraph not in report - try again with one of these:\n {section.keys()}")
+        return None
+    text = section[paragraph]
+
+    token = encode_text(text)
+    token = pad_tensor(token)
+    tensor_name = f"R{month}{year}{header[:5]}{paragraph[:5]}"
+
+    start_date = dt(year,month,1)
+    end_date = start_date + relativedelta(months=2)
+    if end_date > dt.now(): print(f" Warning: performance target does not contain full 2 months\n end_date: {end_date}, today: {dt.now()}")
+
+    spy = yf.download('SPY',start=start_date.strftime('%Y-%m-%d'),end=end_date.strftime('%Y-%m-%d'))['Adj Close'].pct_change()
+
+    if spy.sum() > 0: target = 1
+    else: target = 0
+
+    data = open('./reports/data.csv','at')
+    data.write(f"{tensor_name},{target}\n")
+    data.close()
+    torch.save(token,f'./reports/tensors/{tensor_name}.tns')
+
+    print(' Completed Successfully')
+    return None
+
 
 
 if __name__ == '__main__':
-    train, test = data_pipeline()
 
-    print(len(train))
-    print(train[0])
-
-    print(len(test))
-    print(test[0])
+    for year in range(2017, 2022):
+        for month in range(1,12):
+            add_report(month, year, 'Overall Market', 'Employment and Wages')
