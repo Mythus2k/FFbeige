@@ -1,6 +1,30 @@
 import requests
 from bs4 import BeautifulSoup
-import datetime as dt
+
+"""
+########### Report Pull Library ###########
+Pull beige reports from the federal reserve
+and clean them into a dictionary of each
+section.
+
+Sections are Overall Market and then the
+federal reserve banks.
+
+Note that the spelling of the Federal Reserve 
+banks is not consistent, to access the 
+sections for each bank use keys().
+ ^ This will be cleaned up in the future
+
+Basic Structure:
+ > month = '01'
+ > year = '2023'
+ > beige_report = get_report(month, year)
+ > report = clean_report(beige_report)
+
+ The 'report' variable is a dict() with a dict()
+ First layer is the Overall Market and Feds
+ Second layer is the relevant sections reported
+"""
 
 def get_report(month=str(), year=str()):
     """
@@ -19,27 +43,17 @@ def get_report(month=str(), year=str()):
     elif int(year)<2011: 
         print(f"Reports prior to 2010 are not prepared yet")
         return None
-    else: return f"unkown error getting report from Federal Reserve"
+    else: 
+        print(f"unkown error getting report from Federal Reserve")
+        return None
         
     soup = BeautifulSoup(requests.get(url).content, "html.parser")
 
     if str(soup.h2) == '<h2>Page not found</h2>': 
-        return f"No report available for {month}/{year}"
+        print(f"No report available for {month}/{year}")
+        return None
     
     return soup
-
-def save_report(report=BeautifulSoup()):
-    """
-    Saves report to local folder titled reports
-    """
-    h2 = str(report.h2).splitlines()[1].split('-')[1].split(' ')
-    date = dt.datetime.strptime(h2[-1]+' '+h2[1],'%Y %B')
-    month = str(date.month)
-    if len(month) == 1: month = '0'+month
-    year = str(date.year)
-
-    with open('./reports/BR'+month+year+'.html','w', encoding='utf-8') as file: 
-        file.write(report.prettify()) 
 
 def pull_local_report(month=str(),year=str()):
     """
@@ -66,34 +80,61 @@ def version_check(report=BeautifulSoup()):
 
 def clean_report(report=BeautifulSoup()):
     """
-    Cleans up html and gives the report broken up into sections
+    Cleans up html and gives the report broken up into a dictionary
     """
     version = version_check(report)
 
     if version == 1:
-        print('not ready to clean the report version 1 yet')
-        return None
+        print('not ready to clean the report version 1 yet (1996-2010)')
+        return vOneClean(report)
     
     if version == 2:
-        print('not ready to clean the report version 2 yet')
-        return None
+        print('not ready to clean the report version 2 yet (2011-2016)')
+        return vTwoClean(report)
     
     if version == 3:
         return vThreeClean(report)
     
-def vThreeClean(report=BeautifulSoup()):
-    
-    Bank = 'Overall Market'
-    for line in report.find(id='article').find_all('p')[13:16]:
+def vOneClean(report=BeautifulSoup()):
+    return None
+
+def vTwoClean(report=BeautifulSoup()):
+    return None
+
+def vThreeClean(report=BeautifulSoup()):    
+    bank = 'Overall Market'
+    dissected_report = {bank: {}}
+
+    report = report.find(id='article')
+    divs = report.find_all('div')
+    for div in divs: div.extract()
+
+    for line in report.find_all('p'):
         
         if line.strong == None:
-            Bank = str(line.a).split('>')[0].split('=')[-1].replace('"','').capitalize()
-            Bank = 'Federal Reserve Bank of ' + Bank
+            if len(line.get_text().strip()) > 0: None
+
+            else:
+                bank = str(line.a).split('>')[0].split('=')[-1].replace('"','').capitalize()
+                bank = 'Federal Reserve Bank of ' + bank
+                dissected_report[bank] = {}
 
         else:
-            print(line.get_text())
+            split_section = line.get_text().splitlines()
+            if len(split_section) != 2:
+                print(f"Irregularity in report_pull.py, line 123.\n<p> had abnormal structure and was not added: \n{split_section}")
 
+            else:
+                header = split_section[0].strip()
+                text = split_section[1].strip()
 
+                dissected_report[bank][header] = text
 
-br = pull_local_report('04','2023')
-clean_report(br)
+    return dissected_report
+
+if __name__ == '__main__':
+    month = '09'
+    year = '2017'
+
+    report = get_report(month,year)
+    report = clean_report(report)
