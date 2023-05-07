@@ -40,14 +40,14 @@ criterion = nn.BCELoss()
 optimizer = optim.Adam(model.parameters())
 
 
-train_data, test_data = data_pipeline(38)
+# train_data, test_data = data_pipeline(90)
 
 
 num_epochs = 20
 
 for epoch in range(num_epochs):
     train_loss = 0.0
-    # train_data, test_data = data_pipeline(24)
+    train_data, test_data = data_pipeline(90)
     for i, (inputs, labels) in enumerate(train_data):
         # move data to device
         inputs = inputs.to(DEVICE)
@@ -98,7 +98,7 @@ for epoch in range(num_epochs):
     # print epoch statistics
     print(f"Epoch {epoch+1}/{num_epochs}: train_loss={avg_train_loss:.4f}, test_loss={avg_test_loss:.4f}, accuracy: {accuracy:.6f}, predicted buy: {pred_buy_amt:.6}, len_data: {len(test_data)}")
 
-torch.save(model,'./models/biege_0.04.model')
+torch.save(model,'./models/biege_0.05.model')
 
 
 def perfomance_check(month,year):
